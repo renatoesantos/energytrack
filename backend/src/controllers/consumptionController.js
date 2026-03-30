@@ -1,10 +1,13 @@
 const { sql } = require("../config/db");
+const { calculateMetrics } = require("../services/energyService");
+const { generateAlerts } = require("../services/energyService");
+const { getHighestConsumption } = require("../services/energyService");
 
 // Criar registro de consumo
 exports.createConsumption = async (req, res) => {
   try {
     const { device_name, watts } = req.body;
-    const userId = req.userId; // vem do token
+    const userId = req.userId;
 
     const result = await sql`
       INSERT INTO consumption (device_name, watts, user_id)
@@ -30,5 +33,26 @@ exports.getConsumptions = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Erro ao buscar dados" });
+  }
+};
+
+// Calcular métricas de consumo
+exports.getMetrics = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const result = await sql`
+      SELECT * FROM consumption
+      WHERE user_id = ${userId}
+    `;
+
+    const metrics = calculateMetrics(result);
+    const alerts = generateAlerts(result);
+    const highest = getHighestConsumption(result);
+
+    res.json({ ...metrics, alerts, highestDevice: highest });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro ao calcular métricas" });
   }
 };
