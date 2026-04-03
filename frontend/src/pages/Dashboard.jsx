@@ -5,16 +5,19 @@ import {
     Chart as ChartJS,
     BarElement,
     CategoryScale,
-    LinearScale
+    LinearScale,
+    LineElement,
+    PointElement
 } from "chart.js";
-import { Bar } from "react-chartjs-2";
+import { Bar, Line } from "react-chartjs-2";
 
-ChartJS.register(BarElement, CategoryScale, LinearScale);
+ChartJS.register(LineElement, PointElement, BarElement, CategoryScale, LinearScale);
 
 export default function Dashboard() {
     const [data, setData] = useState([]);
     const user = JSON.parse(localStorage.getItem("user"));
     const [metrics, setMetrics] = useState({});
+    const [hourData, setHourData] = useState([]);
 
     const chartData = {
         labels: data.map((item) => item.device_name),
@@ -25,9 +28,36 @@ export default function Dashboard() {
             },
         ],
     };
+
+    const hourChartData = {
+        labels: hourData.map(item => `${item.hour}h`),
+        datasets: [
+            {
+                label: "Consumo por Hora (W)",
+                data: hourData.map(item => item.total_watts),
+            },
+        ],
+    };
+
+    const peakHour = hourData.length > 0
+        ? hourData.reduce((prev, current) =>
+            prev.total_watts > current.total_watts ? prev : current
+        )
+        : null;
+
+    const options = {
+        responsive: true,
+        plugins: {
+            legend: {
+                display: true,
+            },
+        },
+    };
+
     useEffect(() => {
         fetchData();
         fetchMetrics();
+        fetchHourData();
     }, []);
 
     async function fetchData() {
@@ -52,6 +82,8 @@ export default function Dashboard() {
 
             <h2>Bem-vindo, {user.name}</h2>
 
+            <button onClick={sendData}>Simular Consumo</button>
+
             <h1>Consumo de Energia</h1>
 
             <div>
@@ -73,9 +105,13 @@ export default function Dashboard() {
                 />
             ))}
 
-            <button onClick={sendData}>Simular Consumo</button>
-            <Bar data={chartData} />
+            <Bar data={chartData} options={options} />
 
+            <div>
+                <h3>Consumo por Horário</h3>
+                <p>Pico de consumo: {peakHour?.hour}h</p>
+                <Line data={hourChartData} options={options} />
+            </div>
             <button onClick={logout}>Sair</button>
         </div>
     );
@@ -83,8 +119,7 @@ export default function Dashboard() {
     async function sendData() {
         await api.post("/consumption", {
             device_name: "Geladeira",
-            //watts: Math.floor(Math.random() * 200)
-            watts: 610
+            watts: Math.floor(Math.random() * 200)
         });
 
         fetchData();
@@ -100,6 +135,11 @@ export default function Dashboard() {
     async function fetchMetrics() {
         const response = await api.get("/consumption/metrics");
         setMetrics(response.data);
+    }
+
+    async function fetchHourData() {
+        const response = await api.get("/consumption/by-hour");
+        setHourData(response.data);
     }
 
 }

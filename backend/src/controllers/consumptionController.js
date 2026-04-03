@@ -56,3 +56,23 @@ exports.getMetrics = async (req, res) => {
     res.status(500).json({ error: "Erro ao calcular métricas" });
   }
 };
+
+exports.getConsumptionByHour = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const result = await sql`
+      SELECT 
+        EXTRACT(HOUR FROM created_at) AS hour,
+        SUM(watts) AS total_watts
+      FROM consumption
+      WHERE user_id = ${userId}
+      GROUP BY hour
+      ORDER BY hour
+    `;
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao gerar gráfico por horário" });
+  }
+};
