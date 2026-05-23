@@ -6,6 +6,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 router.get("/", authMiddleware, controller.getConsumptions);
 router.post("/", authMiddleware, controller.createConsumption);
 router.get("/metrics", authMiddleware, controller.getMetrics);
-router.get("/by-hour", authMiddleware, controller.getConsumptionByHour);
+router.get("/by-period", authMiddleware, controller.getConsumptionByPeriod);
+router.get("/prediction", authMiddleware, controller.getPrediction);
 
 module.exports = router;

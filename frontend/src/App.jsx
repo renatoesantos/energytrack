@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import CreateDevice from "./pages/CreateDevice";
 
 function App() {
   const token = localStorage.getItem("token");
@@ -16,7 +17,7 @@ function App() {
             <Route path="*" element={<Login />} />
           </>
         ) : (
-          <Route path="/" element={<Dashboard />} />
+          <><Route path="/" element={<Dashboard />} /><Route path="/devices/create" element={<CreateDevice />} /></>
         )}
       </Routes>
     </BrowserRouter>

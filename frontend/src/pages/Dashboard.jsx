@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import api from "../services/api";
+import { io } from "socket.io-client";
 import ConsumptionCard from "../components/ConsumptionCard";
 import {
     Chart as ChartJS,
@@ -9,137 +10,223 @@ import {
     LineElement,
     PointElement
 } from "chart.js";
-import { Bar, Line } from "react-chartjs-2";
+import { Line } from "react-chartjs-2";
 
 ChartJS.register(LineElement, PointElement, BarElement, CategoryScale, LinearScale);
 
 export default function Dashboard() {
-    const [data, setData] = useState([]);
     const user = JSON.parse(localStorage.getItem("user"));
-    const [metrics, setMetrics] = useState({});
-    const [hourData, setHourData] = useState([]);
 
-    const chartData = {
-        labels: data.map((item) => item.device_name),
+    const [devices, setDevices] = useState({});
+    const [metrics, setMetrics] = useState({});
+    const [period, setPeriod] = useState("day");
+    const [chartDataState, setChartDataState] = useState([]);
+    const [predictionData, setPredictionData] = useState([]);
+    const [historyData, setHistoryData] = useState([]);
+
+    const socketRef = useRef(null);
+
+    const deviceList = useMemo(() => Object.values(devices), [devices]);
+
+    const totalWattsRealtime = useMemo(() =>
+        deviceList.reduce((acc, d) => acc + Number(d.watts || 0), 0),
+        [deviceList]
+    );
+
+    const { kwh, cost } = useMemo(() => {
+        if (!predictionData.length) return { kwh: 0, cost: 0 };
+
+        const avg =
+            predictionData.reduce((acc, val) => acc + Number(val), 0) /
+            predictionData.length;
+
+        const kwh = (avg * 24 * 30) / 1000;
+
+        return {
+            kwh: isFinite(kwh) ? kwh : 0,
+            cost: isFinite(kwh) ? kwh * 0.85 : 0
+        };
+    }, [predictionData]);
+
+    const chartData = useMemo(() => ({
+        labels: [
+            ...historyData.map(d => new Date(d.date).toLocaleDateString()),
+            ...predictionData.map((_, i) => `+${i + 1}d`)
+        ],
+        datasets: [
+            {
+                label: "Histórico",
+                data: historyData.map(d => Number(d.avg_watts)),
+            },
+            {
+                label: "Previsão",
+                data: [
+                    ...Array(historyData.length).fill(null),
+                    ...predictionData
+                ],
+            }
+        ]
+    }), [historyData, predictionData]);
+
+    const periodChartData = useMemo(() => ({
+        labels: chartDataState?.map(item => item.label) || [],
         datasets: [
             {
                 label: "Consumo (W)",
-                data: data.map((item) => item.watts),
+                data: chartDataState?.map(item => Number(item.total_watts)) || [],
             },
         ],
-    };
+    }), [chartDataState]);
 
-    const hourChartData = {
-        labels: hourData.map(item => `${item.hour}h`),
-        datasets: [
-            {
-                label: "Consumo por Hora (W)",
-                data: hourData.map(item => item.total_watts),
-            },
-        ],
-    };
+    const peak = useMemo(() => {
+        if (!chartDataState?.length) return null;
 
-    const peakHour = hourData.length > 0
-        ? hourData.reduce((prev, current) =>
-            prev.total_watts > current.total_watts ? prev : current
-        )
-        : null;
+        return chartDataState.reduce((a, b) =>
+            Number(a.total_watts) > Number(b.total_watts) ? a : b
+        );
+    }, [chartDataState]);
 
     const options = {
+        animation: false,
         responsive: true,
-        plugins: {
-            legend: {
-                display: true,
-            },
-        },
+        plugins: { legend: { display: true } },
     };
 
     useEffect(() => {
-        fetchData();
         fetchMetrics();
-        fetchHourData();
+        fetchPrediction();
+        fetchDevices();
     }, []);
 
-    async function fetchData() {
-        try {
-            const response = await api.get("/consumption");
-            setData(Array.isArray(response.data) ? response.data : []);
-        } catch (error) {
-            console.error("Erro ao buscar dados", error);
-        }
-    }
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchChartData(period);
+        }, 10000);
+
+        return () => clearInterval(interval);
+    }, [period]);
+
+    useEffect(() => {
+        socketRef.current = io("http://localhost:3000");
+        socketRef.current.emit("join", user.id);
+
+        socketRef.current.on("update-device", (data) => {
+            console.log("🔥 RECEBIDO:", data);
+            
+            setDevices(prev => ({
+                ...prev,
+                [data.device_name]: {
+                    ...(prev[data.device_name] || {}),
+                    ...data,
+                    watts: Number(data.watts)
+                }
+            }));
+        });
+
+        socketRef.current.on("new-consumption", (data) => {
+            console.log("🔥 RECEBIDO:", data);
+            
+            if (!data.watts || data.watts < 0) return;
+
+            const now = new Date();
+
+            setChartDataState(prev =>
+                [
+                    ...prev,
+                    {
+                        label: now.getHours() + "h",
+                        total_watts: data.watts
+                    }
+                ].slice(-20)
+            );
+        });
+
+        return () => socketRef.current.disconnect();
+    }, []);
 
     return (
         <div>
-            <div>
-                <h3>Alertas</h3>
-                {metrics.alerts?.map((alert, index) => (
-                    <p key={index} style={{ color: "red" }}>
-                        {alert}
-                    </p>
-                ))}
-            </div>
-
             <h2>Bem-vindo, {user.name}</h2>
 
-            <button onClick={sendData}>Simular Consumo</button>
+            <h3>Alertas</h3>
+            {metrics.alerts?.map((alert, i) => (
+                <p key={i} style={{ color: "red" }}>{alert.message}</p>
+            ))}
 
-            <h1>Consumo de Energia</h1>
+            <button onClick={() => window.location.href = "/devices/create"}>
+                + Novo Dispositivo
+            </button>
 
-            <div>
-                <h3>Métricas</h3>
-                <p>Total (kWh): {metrics.totalKwh}</p>
-                <p>Custo estimado: R$ {metrics.estimatedCost}</p>
-                <p>Média de consumo: {metrics.averageWatts} W</p>
-                <p>Máximo consumo: {metrics.maxWatts} W</p>
-                <p>Dispositivo que mais consome: {metrics.highestDevice?.device_name}</p>
-                <p>Média diária (kWh): {metrics.dailyAvg}</p>
-                <p>Previsão mensal (kWh): {metrics.monthlyPrediction}</p>
-            </div>
+            <h3>Métricas</h3>
+            <p>Total (kWh): {metrics.totalKwh || 0}</p>
+            <p>Custo estimado: R$ {metrics.estimatedCost || 0}</p>
+            <p>Média: {metrics.averageWatts || 0} W</p>
+            <p>Máximo: {metrics.maxWatts || 0} W</p>
+            <p>Maior consumo: {metrics.highestDevice?.device_name}</p>
+            <p>Consumo atual: {totalWattsRealtime.toFixed(2)} W</p>
 
-            {Array.isArray(data) && data.map((item) => (
+            <h3>Dispositivos</h3>
+            {deviceList.map((d) => (
                 <ConsumptionCard
-                    key={item.id}
-                    device={item.device_name}
-                    watts={item.watts}
+                    key={d.device_name}
+                    device={d.device_name}
+                    watts={d.watts}
                 />
             ))}
 
-            <Bar data={chartData} options={options} />
+            <h3>Previsão</h3>
+            <p>{kwh.toFixed(2)} kWh</p>
+            <p>R$ {cost.toFixed(2)}</p>
 
-            <div>
-                <h3>Consumo por Horário</h3>
-                <p>Pico de consumo: {peakHour?.hour}h</p>
-                <Line data={hourChartData} options={options} />
-            </div>
+            <Line data={chartData} options={options} />
+
+            <h3>Consumo por período</h3>
+            <button onClick={() => setPeriod("day")}>Dia</button>
+            <button onClick={() => setPeriod("week")}>Semana</button>
+            <button onClick={() => setPeriod("month")}>Mês</button>
+
+            <p>Pico: {peak?.label}</p>
+
+            <Line data={periodChartData} options={options} />
+
             <button onClick={logout}>Sair</button>
         </div>
     );
 
-    async function sendData() {
-        await api.post("/consumption", {
-            device_name: "Geladeira",
-            watts: Math.floor(Math.random() * 200)
-        });
-
-        fetchData();
-        fetchMetrics();
-    }
-
     function logout() {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        localStorage.clear();
         window.location.href = "/login";
     }
 
     async function fetchMetrics() {
-        const response = await api.get("/consumption/metrics");
-        setMetrics(response.data);
+        const res = await api.get("/consumption/metrics");
+        setMetrics(res.data);
     }
 
-    async function fetchHourData() {
-        const response = await api.get("/consumption/by-hour");
-        setHourData(response.data);
+    async function fetchChartData(p) {
+        const res = await api.get(`/consumption/by-period?period=${p}`);
+        setChartDataState(res.data.slice(-50));
     }
 
+    async function fetchPrediction() {
+        const res = await api.get("/consumption/prediction");
+        setHistoryData(res.data.history);
+        setPredictionData(res.data.predictions);
+    }
+
+    async function fetchDevices() {
+        const res = await api.get("/devices");
+
+        const mapped = {};
+
+        res.data.forEach(device => {
+            mapped[device.name] = {
+                device_name: device.name,
+                watts: 0,
+                ...device
+            };
+        });
+
+        setDevices(mapped);
+    }
 }

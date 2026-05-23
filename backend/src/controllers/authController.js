@@ -4,6 +4,8 @@ const jwt = require("jsonwebtoken");
 
 const SECRET = process.env.JWT_SECRET;
 
+console.log("JWT_SECRET:", process.env.JWT_SECRET);
+
 // REGISTRO
 exports.register = async (req, res) => {
   try {
@@ -28,6 +30,8 @@ exports.login = async (req, res) => {
 
     const user = await sql`SELECT * FROM users WHERE email = ${email}`;
 
+    console.log("USER:", user);
+
     if (user.length === 0) {
       return res.status(400).json({ error: "Usuário não encontrado" });
     }
@@ -44,8 +48,10 @@ exports.login = async (req, res) => {
     const token = jwt.sign(
       { id: user[0].id },
       SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1y" }
     );
+
+    console.log('TOKEN GERADO:', token);
 
     res.json({
       token,
@@ -56,7 +62,7 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
-    //console.error(error.response?.data || error);
-    res.status(500).json({ error: "Erro no login" });
-  }
+    console.error("🔥 ERRO REAL LOGIN:", error);
+    res.status(500).json({ error: error.message });
+}
 };

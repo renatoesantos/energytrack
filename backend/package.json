@@ -7,7 +7,8 @@
     "jsonwebtoken": "^9.0.3",
     "node": "^25.8.2",
     "pg": "^8.20.0",
-    "postgres": "^3.4.8"
+    "postgres": "^3.4.8",
+    "socket.io": "^4.8.3"
   },
   "name": "backend",
   "version": "1.0.0",

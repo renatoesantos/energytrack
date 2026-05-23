@@ -20,7 +20,9 @@ function calculateDailyAverage(consumptions) {
     totalWatts += Number(item.watts);
   });
 
-  const totalKwh = totalWatts / 1000;
+  //const totalKwh = totalWatts / 1000;
+  const average = totalWatts / consumptions.length || 0;
+  const totalKwh = (average * consumptions.length) / 1000;
 
   const dailyAverage = totalKwh / diffDays;
 
@@ -47,9 +49,9 @@ function calculateMetrics(consumptions) {
     totalWatts += Number(item.watts);
   });
 
-  const totalKwh = totalWatts / 1000;
-  const estimatedCost = totalKwh * tarifa;
   const average = totalWatts / consumptions.length || 0;
+  const totalKwh = (average * consumptions.length) / 1000;
+  const estimatedCost = totalKwh * tarifa;
   const max = Math.max(...consumptions.map(c => c.watts));
   const dailyAvg = calculateDailyAverage(consumptions);
   const monthlyPrediction = dailyAvg * 30;
@@ -67,15 +69,24 @@ function calculateMetrics(consumptions) {
 
 // Gerar alertas inteligentes para consumos anormais
 function generateAlerts(consumptions) {
-  let alerts = [];
+  const alerts = [];
+  const seenDevices = new Set();
+  const now = new Date();
 
   consumptions.forEach((item) => {
-    if (item.watts > 500) {
-      alerts.push(`Alto consumo detectado em ${item.device_name}`);
+    const diffMinutes = (now - new Date(item.created_at)) / 60000;
+
+    if (item.watts > 500 && diffMinutes < 10) {
+      alerts.push({
+        type: "high_consumption",
+        message: `Alto consumo em ${item.device_name}`
+      });
+
+      seenDevices.add(item.device_name);
     }
   });
 
-  return alerts;
+  return alerts.slice(0, 5);
 }
 
 module.exports = { calculateMetrics, generateAlerts, getHighestConsumption };

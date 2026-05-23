@@ -19,7 +19,7 @@ export default function Login() {
 
       window.location.href = "/";
     } catch (error) {
-      //console.error(error.response?.data || error);
+      console.error(error.response?.data || error);
       alert("Erro no login");
     }
   }
