@@ -30,11 +30,10 @@ async function login() {
     }
 }
 
-console.log("TOKEN:", TOKEN);
-
 async function startSimulator() {
     TOKEN = await login(); // 🔥 pega token automaticamente
 
+    console.log("TOKEN:", TOKEN);
     await fetchDevices();
 
     setInterval(() => {
