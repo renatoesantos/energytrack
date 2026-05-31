@@ -21,17 +21,17 @@ async function login() {
 
         const token = response.data.token;
 
-        console.log("🔐 Token obtido com sucesso");
+        console.log("Token obtido com sucesso");
 
         return token;
     } catch (error) {
-        console.error("❌ Erro ao fazer login:", error.message);
+        console.error("Erro ao fazer login:", error.message);
         process.exit(1);
     }
 }
 
 async function startSimulator() {
-    TOKEN = await login(); // 🔥 pega token automaticamente
+    TOKEN = await login();
 
     console.log("TOKEN:", TOKEN);
     await fetchDevices();
@@ -88,7 +88,7 @@ async function sendData(device) {
     const watts = generateRealisticWatts(device, hour);
 
     if (!watts || isNaN(watts)) {
-        console.log("❌ Valor inválido ignorado:", device.name);
+        console.log("Valor inválido ignorado:", device.name);
         return;
     }
 
@@ -103,10 +103,10 @@ async function sendData(device) {
             }
         });
 
-        console.log(`📡 ${device.name}: ${watts.toFixed(2)}W`);
+        console.log(`${device.name}: ${watts.toFixed(2)}W`);
     } catch (error) {
         console.error("Erro ao enviar:", error.message);
     }
 }
 
-console.log("🚀 Simulador iniciado...");
+console.log("Simulador iniciado...");

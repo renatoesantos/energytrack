@@ -1,5 +1,6 @@
 import { useState } from "react";
 import api from "../services/api";
+import "../styles/dashboard.css";
 
 export default function CreateDevice() {
   const [form, setForm] = useState({
@@ -51,48 +52,59 @@ export default function CreateDevice() {
   }
 
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Cadastrar Dispositivo</h2>
+    <div className="page-container">
+      <div className="form-card">
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Nome do dispositivo</label>
-          <input
-            type="text"
-            name="name"
-            value={form.name}
-            onChange={handleChange}
-            placeholder="Ex: Geladeira"
-          />
+        {/* HEADER */}
+        <div className="form-header">
+          <h2>⚡ Novo Dispositivo</h2>
+          <p>Cadastre um dispositivo para monitorar o consumo</p>
         </div>
 
-        <div>
-          <label>Voltagem</label>
-          <select
-            name="voltage"
-            value={form.voltage}
-            onChange={handleChange}
-          >
-            <option value={110}>110V</option>
-            <option value={220}>220V</option>
-          </select>
-        </div>
+        {/* FORM */}
+        <form onSubmit={handleSubmit} className="form">
 
-        <div>
-          <label>Consumo mensal (kWh)</label>
-          <input
-            type="number"
-            name="monthly_kwh"
-            value={form.monthly_kwh}
-            onChange={handleChange}
-            placeholder="Ex: 45"
-          />
-        </div>
+          <div className="form-group">
+            <label>Nome do dispositivo</label>
+            <input
+              type="text"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              placeholder="Ex: Geladeira"
+            />
+          </div>
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Salvando..." : "Cadastrar"}
-        </button>
-      </form>
+          <div className="form-group">
+            <label>Voltagem</label>
+            <select
+              name="voltage"
+              value={form.voltage}
+              onChange={handleChange}
+            >
+              <option value={110}>110V</option>
+              <option value={220}>220V</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Consumo mensal (kWh)</label>
+            <input
+              type="number"
+              name="monthly_kwh"
+              value={form.monthly_kwh}
+              onChange={handleChange}
+              placeholder="Ex: 45"
+            />
+          </div>
+
+          <button type="submit" disabled={loading}>
+            {loading ? "Salvando..." : "Cadastrar"}
+          </button>
+
+        </form>
+
+      </div>
     </div>
   );
 }
