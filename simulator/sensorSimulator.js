@@ -82,30 +82,75 @@ function getHour() {
 startSimulator();
 
 
+function isDeviceActive(device, currentHour) {
+    if (device.alwaysOn) {
+        return true;
+    }
+
+    if (!device.schedule) {
+        return true;
+    }
+
+    if (Array.isArray(device.schedule)) {
+        return device.schedule.some(range => {
+            return isHourInRange(currentHour, range.start, range.end);
+        });
+    }
+
+    if (typeof device.schedule === 'object') {
+        return isHourInRange(currentHour, device.schedule.start, device.schedule.end);
+    }
+
+    return false;
+}
+
+function isHourInRange(hour, start, end) {
+    if (start <= end) {
+        return hour >= start && hour < end;
+    } else {
+        return hour >= start || hour < end;
+    }
+}
+
 async function sendData(device) {
     const hour = getHour();
 
-    const watts = generateRealisticWatts(device, hour);
+    const config = require("./config"); 
+    const deviceConfig = config.DEVICES.find(
+        d => d.name.toLowerCase() === device.name.toLowerCase()
+    );
 
-    if (!watts || isNaN(watts)) {
-        console.log("Valor inválido ignorado:", device.name);
+    let watts = 0;
+
+    if (deviceConfig && isDeviceActive(deviceConfig, hour)) {
+        watts = generateRealisticWatts(device, hour);
+    } else {
+        watts = device.name.toLowerCase() === "televisão" || device.name.toLowerCase() === "tv" ? 1.0 : 0.0;
+    }
+
+    if (isNaN(watts)) { 
+        console.log("⚠️ Valor inválido ignorado:", device.name);
         return;
     }
 
     try {
-        await axios.post(`${BASE_URL}/consumption`, {
-            device_name: device.name,
-            watts: watts.toFixed(2),
-            device_id: device.id || null
+        await axios.post(`${BASE_URL}/consumption`, { 
+            device_name: device.name, 
+            watts: watts.toFixed(2), 
+            device_id: device.id || null 
         }, {
             headers: {
-                Authorization: `Bearer ${TOKEN}`
+                Authorization: `Bearer ${TOKEN}` 
             }
         });
 
-        console.log(`${device.name}: ${watts.toFixed(2)}W`);
+        if (watts > 1) {
+            console.log(`🟢 ${device.name}: ${watts.toFixed(2)}W (Ativo)`);
+        } else {
+            console.log(`💤 ${device.name}: ${watts.toFixed(2)}W (Standby/Desligado)`);
+        }
     } catch (error) {
-        console.error("Erro ao enviar:", error.message);
+        console.error("❌ Erro ao enviar:", error.message); 
     }
 }
 

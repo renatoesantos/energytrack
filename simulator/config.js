@@ -33,6 +33,34 @@ module.exports = {
       name: "Computador",
       monthly_kwh: 40,
       schedule: { start: 9, end: 17 },
+    },
+    {
+      name: "Micro-Ondas",
+      monthly_kwh: 15,
+      schedule: [
+        { start: 11, end: 13 },
+        { start: 18, end: 20 }
+      ],
+    },
+    {
+      name: "PS5",
+      monthly_kwh: 18,
+      schedule: { start: 19, end: 22 },
+    },
+    {
+      name: "Xbox",
+      monthly_kwh: 15,
+      schedule: { start: 14, end: 17 },
+    },
+    {
+      name: "Maquina de Lavar",
+      monthly_kwh: 25,
+      schedule: { start: 10, end: 14 },
+    },
+    {
+      name: "Roteador Wi-Fi",
+      monthly_kwh: 7,
+      alwaysOn: true,
     }
   ]
 };
