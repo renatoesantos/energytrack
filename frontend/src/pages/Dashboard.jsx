@@ -50,6 +50,17 @@ export default function Dashboard() {
     }, [predictionData]);
 
     const chartData = useMemo(() => {
+        const formattedHistoryLabels = historyData.map(d => {
+            const dateObj = new Date(d.date);
+            if (isNaN(dateObj.getTime())) {
+                const [year, month, day] = d.date.split(/[-/]/);
+                return `${day.substring(0, 2)}/${month}`;
+            }
+            return dateObj.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+        });
+
+        const lastHistoryValue = historyData.length ? Number(historyData[historyData.length - 1].avg_watts) : null;
+
         const lastDate = historyData.length
             ? new Date(historyData[historyData.length - 1].date)
             : new Date();
@@ -66,41 +77,34 @@ export default function Dashboard() {
 
         return {
             labels: [
-                ...historyData.map(d => new Date(d.date).toLocaleDateString()),
+                ...formattedHistoryLabels,
                 ...predictionLabels
             ],
             datasets: [
                 {
                     label: "Histórico",
                     data: historyData.map(d => Number(d.avg_watts)),
-
                     borderColor: "#4f46e5",
                     backgroundColor: "rgba(79, 70, 229, 0.15)",
-
                     tension: 0.4,
                     fill: true,
-
                     pointRadius: 3,
                     pointBackgroundColor: "#4f46e5",
-
                     borderWidth: 2,
                 },
                 {
                     label: "Previsão",
                     data: [
-                        ...Array(historyData.length).fill(null),
+                        ...Array(Math.max(0, historyData.length - 1)).fill(null),
+                        lastHistoryValue,
                         ...predictionData
                     ],
-
                     borderColor: "#22c55e",
                     backgroundColor: "rgba(34, 197, 94, 0.1)",
-
                     tension: 0.4,
                     fill: true,
-
                     borderDash: [6, 6],
                     pointRadius: 2,
-
                     borderWidth: 2,
                 }
             ]
@@ -199,6 +203,7 @@ export default function Dashboard() {
                     watts: Number(data.watts)
                 }
             }));
+            fetchMetrics();
         });
 
         socketRef.current.on("new-consumption", (data) => {
@@ -219,7 +224,9 @@ export default function Dashboard() {
             );
         });
 
-        return () => socketRef.current.disconnect();
+        return () => {
+            if (socketRef.current) socketRef.current.disconnect();
+        };
     }, []);
 
     return (
@@ -237,19 +244,19 @@ export default function Dashboard() {
             <section className="metrics-grid">
                 <div className="card">
                     <h4>Consumo Atual</h4>
-                    <p>{totalWattsRealtime.toFixed(2)} W</p>
+                    <p>{`${totalWattsRealtime.toFixed(2)} W`}</p>
                 </div>
                 <div className="card">
                     <h4>Total (kWh)</h4>
-                    <p>{metrics.totalKwh || 0}</p>
+                    <p>{`${metrics.totalKwh || 0} kWh`}</p>
                 </div>
                 <div className="card">
                     <h4>Custo Estimado</h4>
-                    <p>R$ {metrics.estimatedCost || 0}</p>
+                    <p>R$ {`${metrics.estimatedCost || 0}`}</p>
                 </div>
                 <div className="card">
                     <h4>Maior Consumo</h4>
-                    <p>{metrics.highestDevice?.device_name || "-"}</p>
+                    <p>{`${metrics.highestDevice?.device_name || "-"}`}</p>
                 </div>
             </section>
 

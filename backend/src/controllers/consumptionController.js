@@ -54,12 +54,14 @@ exports.getMetrics = async (req, res) => {
     const userId = req.userId;
 
     const result = await sql`
-      SELECT * FROM consumption
+      SELECT id, device_name, watts, user_id, device_id, created_at 
+      FROM consumption
       WHERE user_id = ${userId}
-      AND created_at >= NOW() - INTERVAL '1 hour'
-      ORDER BY created_at DESC
-      LIMIT 200
+      AND DATE(created_at) = CURRENT_DATE
+      ORDER BY created_at ASC
     `;
+
+    console.log(`🔍 DEBUG INTERNO: Encontrados ${result.length} registros. Primeiro registro:`, result[0] ? result[0] : "Nenhum");
 
     const metrics = calculateMetrics(result);
     const alerts = generateAlerts(result);
@@ -131,28 +133,29 @@ exports.getConsumptionByPeriod = async (req, res) => {
 
 exports.getPrediction = async (req, res) => {
   try {
-    const userId = req.userId;
-
-    // Agrupar por dia
+    const userId = req.userId
+    
     const result = await sql`
       SELECT 
-        DATE(created_at) AS date,
-        AVG(watts) AS avg_watts
+        DATE(created_at)::text AS date,
+        AVG(watts)::float AS avg_watts
       FROM consumption
       WHERE user_id = ${userId}
-      AND created_at >= NOW() - INTERVAL '30 days'
-      GROUP BY date
-      ORDER BY date
+      GROUP BY DATE(created_at)
+      ORDER BY DATE(created_at) ASC
     `;
+
+    console.log("📊 DEBUG PREDIÇÃO - Histórico formatado:", result);
 
     const predictions = predictNext(result, 5);
 
     res.json({
       history: result,
-      predictions
+      predictions: predictions.map(p => Number(p) || 0)
     });
 
   } catch (error) {
+    console.error("Erro na rota de predição:", error);
     res.status(500).json({ error: "Erro na previsão" });
   }
 };
