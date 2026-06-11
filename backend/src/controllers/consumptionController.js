@@ -86,10 +86,10 @@ exports.getConsumptionByPeriod = async (req, res) => {
       query = sql`
         SELECT 
           EXTRACT(HOUR FROM created_at) AS label,
-          SUM(watts) AS total_watts
+          ROUND(AVG(watts)::numeric, 2)::float AS total_watts
         FROM consumption
         WHERE user_id = ${userId}
-        AND created_at >= NOW() - INTERVAL '1 day'
+        AND created_at >= (NOW() AT TIME ZONE 'America/Sao_Paulo' - INTERVAL '1 day')
         GROUP BY label
         ORDER BY label
       `;
@@ -98,19 +98,19 @@ exports.getConsumptionByPeriod = async (req, res) => {
       query = sql`
         SELECT 
           TO_CHAR(created_at, 'Dy') AS label,
-          SUM(watts) AS total_watts
+          ROUND(AVG(watts)::numeric, 2)::float AS total_watts
         FROM consumption
         WHERE user_id = ${userId}
         AND created_at >= NOW() - INTERVAL '7 days'
-        GROUP BY label
-        ORDER BY label
+        GROUP BY label, EXTRACT(DOW FROM created_at)
+        ORDER BY EXTRACT(DOW FROM created_at) ASC
       `;
     }
     else if (period === "month") {
       query = sql`
         SELECT 
           TO_CHAR(created_at, 'DD/MM') AS label,
-          SUM(watts) AS total_watts
+          ROUND(AVG(watts)::numeric, 2)::float AS total_watts
         FROM consumption
         WHERE user_id = ${userId}
         AND created_at >= NOW() - INTERVAL '30 days'
@@ -134,7 +134,7 @@ exports.getConsumptionByPeriod = async (req, res) => {
 exports.getPrediction = async (req, res) => {
   try {
     const userId = req.userId
-    
+
     const result = await sql`
       SELECT 
         DATE(created_at)::text AS date,

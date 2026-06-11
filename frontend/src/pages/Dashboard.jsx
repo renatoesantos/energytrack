@@ -21,7 +21,7 @@ export default function Dashboard() {
             window.location.href = "/login";
         }
     }, []);
-    
+
     const user = JSON.parse(localStorage.getItem("user") || "null");
 
     const [devices, setDevices] = useState({});
@@ -57,19 +57,25 @@ export default function Dashboard() {
 
     const chartData = useMemo(() => {
         const formattedHistoryLabels = historyData.map(d => {
-            const dateObj = new Date(d.date);
-            if (isNaN(dateObj.getTime())) {
-                const [year, month, day] = d.date.split(/[-/]/);
+            if (!d.date) return "";
+            const parts = d.date.split(/[-/]/);
+            if (parts.length >= 3) {
+                const [year, month, day] = parts;
                 return `${day.substring(0, 2)}/${month}`;
             }
-            return dateObj.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+            return d.date; 
         });
 
         const lastHistoryValue = historyData.length ? Number(historyData[historyData.length - 1].avg_watts) : null;
 
-        const lastDate = historyData.length
-            ? new Date(historyData[historyData.length - 1].date)
-            : new Date();
+        let lastDate = new Date();
+        if (historyData.length && historyData[historyData.length - 1].date) {
+            const parts = historyData[historyData.length - 1].date.split(/[-/]/);
+            if (parts.length >= 3) {
+                // Usamos o construtor numérico (Ano, Mês - 1, Dia) para criar a data local pura
+                lastDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            }
+        }
 
         const predictionLabels = predictionData.map((_, i) => {
             const nextDate = new Date(lastDate);
@@ -117,26 +123,41 @@ export default function Dashboard() {
         };
     }, [historyData, predictionData]);
 
-    const periodChartData = useMemo(() => ({
-        labels: chartDataState?.map(item => item.label) || [],
-        datasets: [
-            {
-                label: "Consumo (W)",
-                data: chartDataState?.map(item => Number(item.total_watts)) || [],
+    const periodChartData = useMemo(() => {
+        const diasSemana = {
+            'Sun': 'Dom',
+            'Mon': 'Seg',
+            'Tue': 'Ter',
+            'Wed': 'Qua',
+            'Thu': 'Qui',
+            'Fri': 'Sex',
+            'Sat': 'Sáb'
+        };
 
-                borderColor: "#4f46e5",
-                backgroundColor: "rgba(79, 70, 229, 0.15)",
-
-                tension: 0.4,
-                fill: true,
-
-                pointRadius: 3,
-                pointBackgroundColor: "#4f46e5",
-
-                borderWidth: 2,
+        const formattedLabels = chartDataState?.map(item => {
+            if (period === "day" && !isNaN(item.label)) {
+                return `${item.label}h`;
             }
-        ],
-    }), [chartDataState]);
+            return diasSemana[item.label] || item.label;
+        }) || [];
+
+        return {
+            labels: formattedLabels,
+            datasets: [
+                {
+                    label: "Consumo (W)",
+                    data: chartDataState?.map(item => Number(item.total_watts)) || [],
+                    borderColor: "#4f46e5",
+                    backgroundColor: "rgba(79, 70, 229, 0.15)",
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 3,
+                    pointBackgroundColor: "#4f46e5",
+                    borderWidth: 2,
+                }
+            ],
+        };
+    }, [chartDataState]);
 
     const peak = useMemo(() => {
         if (!chartDataState?.length) return null;
@@ -187,6 +208,8 @@ export default function Dashboard() {
     }, []);
 
     useEffect(() => {
+        fetchChartData(period);
+
         const interval = setInterval(() => {
             fetchChartData(period);
         }, 10000);
@@ -343,7 +366,19 @@ export default function Dashboard() {
             </div>
 
             <p className="peak">
-                Pico de consumo: <strong>{peak?.label || "-"}</strong>
+                Pico de consumo: <strong>
+                    {peak?.label ? (
+                        {
+                            'Sun': 'Domingo',
+                            'Mon': 'Segunda-feira',
+                            'Tue': 'Terça-feira',
+                            'Wed': 'Quarta-feira',
+                            'Thu': 'Quinta-feira',
+                            'Fri': 'Sexta-feira',
+                            'Sat': 'Sábado'
+                        }[peak.label] || peak.label
+                    ) : "-"}
+                </strong>
             </p>
 
             <div className="chart-container">
