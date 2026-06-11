@@ -3,8 +3,22 @@
 Sistema IoT para monitoramento de consumo de energia.
 
 ## Tecnologias
-- Node.js
+
+Frontend
+
 - React
+- React Router DOM
+- JavaScript (ES6+)
+- CSS
+
+Backend
+
+- Node.js
+- Express
+- Socket.io
+
+Banco de Dados
+
 - PostgreSQL
 
 ## Como rodar
