@@ -16,7 +16,13 @@ import { Line } from "react-chartjs-2";
 ChartJS.register(LineElement, PointElement, BarElement, CategoryScale, LinearScale);
 
 export default function Dashboard() {
-    const user = JSON.parse(localStorage.getItem("user"));
+    useEffect(() => {
+        if (!user) {
+            window.location.href = "/login";
+        }
+    }, []);
+    
+    const user = JSON.parse(localStorage.getItem("user") || "null");
 
     const [devices, setDevices] = useState({});
     const [metrics, setMetrics] = useState({});
@@ -190,7 +196,9 @@ export default function Dashboard() {
 
     useEffect(() => {
         socketRef.current = io("http://localhost:3000");
-        socketRef.current.emit("join", user.id);
+        if (user?.id) {
+            socketRef.current.emit("join", user.id);
+        }
 
         socketRef.current.on("update-device", (data) => {
             console.log("🔥 RECEBIDO:", data);
@@ -235,7 +243,7 @@ export default function Dashboard() {
             <header className="dashboard-header">
                 <h2>⚡ EnergyTrack</h2>
                 <div>
-                    <span>{user.name}</span>
+                    <span>{user?.name || "Usuário"}</span>
                     <button onClick={logout}>Sair</button>
                 </div>
             </header>

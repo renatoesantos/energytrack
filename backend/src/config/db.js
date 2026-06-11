@@ -1,8 +1,9 @@
 require("dotenv").config();
-postgres = require("postgres");
 
-const url = process.env.DATABASE_URL
+const postgres = require("postgres");
 
-const sql = postgres(url);
+const sql = postgres(process.env.DATABASE_URL, {
+  ssl: false 
+});
 
-module.exports = { sql }
+module.exports = { sql };
